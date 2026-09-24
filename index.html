@@ -49,8 +49,8 @@
   .ptr-label.tail { left: auto; right: 44px; background: var(--muted); }
   .node { display: flex; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); width: 190px; overflow: hidden; transition: transform .25s, border-color .25s, box-shadow .25s; animation: pop .35s ease; }
   @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .node.visit { border-color: var(--visit); box-shadow: 0 0 0 4px color-mix(in srgb, var(--visit) 30%, transparent); transform: translateY(-4px); }
-  .node.found { border-color: var(--found); box-shadow: 0 0 0 4px color-mix(in srgb, var(--found) 30%, transparent); transform: translateY(-4px); }
+  .node.visit { border-color: var(--visit); box-shadow: 0 0 0 4px rgba(242, 193, 78, .3); transform: translateY(-4px); }
+  .node.found { border-color: var(--found); box-shadow: 0 0 0 4px rgba(79, 91, 213, .3); transform: translateY(-4px); }
   .node.removing { animation: out .4s ease forwards; }
   @keyframes out { to { transform: scale(.5) translateY(30px); opacity: 0; } }
   .node.done .data .name { text-decoration: line-through; color: var(--muted); }
@@ -169,248 +169,422 @@
 </div>
 
 <script>
-// ===== Model: JS equivalent of models/task.py, node_task.py y taskList.py =====
-const Priority = { HIGH: 3, MEDIUM: 2, LOW: 1 };
-const PRIORITY_LABEL = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
-
 class Task {
   constructor(name, description, date, priority) {
-    this.name = name; this.description = description; this.date = date;
-    this.priority = priority; this.complete = false;
+    this.name = name;
+    this.description = description;
+    this.date = date;
+    this.priority = priority;
+    this.complete = false;
   }
-  complete_task() { this.complete = true; }
+
+  complete_task() {
+    this.complete = true;
+  }
 }
 
 class NodeTask {
-  constructor(task) { this.task = task; this.next = null; }
+  constructor(task) {
+    this.task = task;
+    this.next = null;
+  }
 }
 
 class TaskList {
-  constructor() { this.first_task = null; this.last_task = null; this.task_count = 0; }
-  is_empty() { return this.first_task === null; }
-  size() { return this.task_count; }
+  constructor() {
+    this.first_task = null;
+    this.last_task = null;
+    this.task_count = 0;
+  }
+
+  is_empty() {
+    return this.first_task == null;
+  }
+
+  size() {
+    return this.task_count;
+  }
 
   addTask(task) {
-    const node = new NodeTask(task);
-    if (this.first_task === null) { this.first_task = node; this.last_task = node; }
-    else { this.last_task.next = node; this.last_task = node; }
+    let newNode = new NodeTask(task);
+    if (this.first_task == null) {
+      this.first_task = newNode;
+      this.last_task = newNode;
+    } else {
+      this.last_task.next = newNode;
+      this.last_task = newNode;
+    }
     this.task_count++;
   }
 
   addTaskFirst(task) {
-    const node = new NodeTask(task);
-    node.next = this.first_task;
-    this.first_task = node;
-    if (this.last_task === null) this.last_task = node;
+    let newNode = new NodeTask(task);
+    newNode.next = this.first_task;
+    this.first_task = newNode;
+    if (this.last_task == null) {
+      this.last_task = newNode;
+    }
     this.task_count++;
   }
 
-  // Step-by-step traversal: onVisit is called with each visited node (for the animation)
-  async find_task(title, onVisit = async () => {}) {
+  async find_task(title) {
     let current = this.first_task;
-    while (current !== null) {
-      await onVisit(current);
-      if (current.task.name === title) return current;
+    while (current != null) {
+      await showVisit(current);
+      if (current.task.name == title) {
+        return current;
+      }
       current = current.next;
     }
     return null;
   }
 
-  async completeTask(title, onVisit) {
-    const node = await this.find_task(title, onVisit);
-    if (node === null) return false;
+  async completeTask(title) {
+    let node = await this.find_task(title);
+    if (node == null) {
+      return false;
+    }
     node.task.complete_task();
     return true;
   }
 
-  async removeTask(title, onVisit = async () => {}) {
-    let current = this.first_task, previous = null;
-    while (current !== null) {
-      await onVisit(current);
-      if (current.task.name === title) {
-        if (previous === null) this.first_task = current.next;
-        else previous.next = current.next;
-        if (current === this.last_task) this.last_task = previous;
+  async removeTask(title) {
+    let current = this.first_task;
+    let previous = null;
+    while (current != null) {
+      await showVisit(current);
+      if (current.task.name == title) {
+        if (previous == null) {
+          this.first_task = current.next;
+        } else {
+          previous.next = current.next;
+        }
+        if (current == this.last_task) {
+          this.last_task = previous;
+        }
         this.task_count--;
         return current;
       }
-      previous = current; current = current.next;
+      previous = current;
+      current = current.next;
     }
     return null;
   }
 
   list_all() {
-    const tasks = []; let current = this.first_task;
-    while (current !== null) { tasks.push(current.task); current = current.next; }
+    let tasks = [];
+    let current = this.first_task;
+    while (current != null) {
+      tasks.push(current.task);
+      current = current.next;
+    }
     return tasks;
   }
-  list_by_priority(p) { return this.list_all().filter(t => t.priority === p); }
-  list_pending() { return this.list_all().filter(t => !t.complete); }
-  list_completed() { return this.list_all().filter(t => t.complete); }
+
+  list_by_priority(priority) {
+    let tasks = [];
+    let current = this.first_task;
+    while (current != null) {
+      if (current.task.priority == priority) {
+        tasks.push(current.task);
+      }
+      current = current.next;
+    }
+    return tasks;
+  }
+
+  list_pending() {
+    let tasks = [];
+    for (let task of this.list_all()) {
+      if (!task.complete) tasks.push(task);
+    }
+    return tasks;
+  }
+
+  list_completed() {
+    let tasks = [];
+    for (let task of this.list_all()) {
+      if (task.complete) tasks.push(task);
+    }
+    return tasks;
+  }
 }
 
-// ===== UI =====
-const list = new TaskList();
-const nodeEls = new Map();
-const $ = id => document.getElementById(id);
-let filter = 'all', busy = false;
+let list = new TaskList();
+let nodeDivs = [];
+let currentFilter = "all";
+let working = false;
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const delay = () => 1100 - Number($('speed').value);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let priorityNames = { HIGH: "High", MEDIUM: "Medium", LOW: "Low" };
 
-function log(msg, cls = 'info') {
-  const line = document.createElement('div');
-  line.className = cls;
-  line.textContent = `› ${msg}`;
-  $('log').prepend(line);
+function wait(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
 }
 
-function render() {
-  const canvas = $('canvas');
-  nodeEls.clear();
-  canvas.innerHTML = '';
+function getDelay() {
+  return 1100 - Number(document.getElementById("speed").value);
+}
+
+function clean(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function addLog(message, type) {
+  let line = document.createElement("div");
+  line.className = type || "info";
+  line.textContent = "› " + message;
+  document.getElementById("log").prepend(line);
+}
+
+function findDiv(node) {
+  for (let item of nodeDivs) {
+    if (item.node == node) return item.div;
+  }
+  return null;
+}
+
+function drawList() {
+  let canvas = document.getElementById("canvas");
+  canvas.innerHTML = "";
+  nodeDivs = [];
+
   if (list.is_empty()) {
     canvas.innerHTML = '<div class="empty">first_task = None · the list is empty</div>';
   } else {
-    const chain = document.createElement('div');
-    chain.className = 'chain';
-    let current = list.first_task, i = 0;
-    while (current !== null) {
-      const t = current.task;
-      const wrap = document.createElement('div');
-      wrap.className = 'node-wrap';
-      const labels = [];
-      if (current === list.first_task) labels.push('<span class="ptr-label">first_task</span>');
-      if (current === list.last_task) labels.push('<span class="ptr-label tail">last_task</span>');
-      wrap.innerHTML = `${labels.join('')}
-        <div class="node ${t.complete ? 'done' : ''}">
-          <div class="data ${t.priority}">
-            <div class="name" title="${esc(t.name)}">${t.complete ? '✔ ' : ''}${esc(t.name)}</div>
-            <div class="desc" title="${esc(t.description)}">${esc(t.description || '—')}</div>
-            <div class="tags"><span class="tag">${PRIORITY_LABEL[t.priority]}</span><span class="tag">${esc(t.date || 'no date')}</span><span class="tag">#${i}</span></div>
-          </div>
-          <div class="next">next</div>
-        </div><div class="arrow"></div>`;
-      nodeEls.set(current, wrap.querySelector('.node'));
+    let chain = document.createElement("div");
+    chain.className = "chain";
+
+    let current = list.first_task;
+    let index = 0;
+    while (current != null) {
+      let task = current.task;
+      let html = "";
+      if (current == list.first_task) html += '<span class="ptr-label">first_task</span>';
+      if (current == list.last_task) html += '<span class="ptr-label tail">last_task</span>';
+
+      let check = task.complete ? "✔ " : "";
+      let done = task.complete ? "done" : "";
+      let date = task.date ? task.date : "no date";
+      let desc = task.description ? task.description : "—";
+
+      html += '<div class="node ' + done + '">' +
+        '<div class="data ' + task.priority + '">' +
+        '<div class="name" title="' + clean(task.name) + '">' + check + clean(task.name) + '</div>' +
+        '<div class="desc" title="' + clean(desc) + '">' + clean(desc) + '</div>' +
+        '<div class="tags">' +
+        '<span class="tag">' + priorityNames[task.priority] + '</span>' +
+        '<span class="tag">' + clean(date) + '</span>' +
+        '<span class="tag">#' + index + '</span>' +
+        '</div></div>' +
+        '<div class="next">next</div>' +
+        '</div><div class="arrow"></div>';
+
+      let wrap = document.createElement("div");
+      wrap.className = "node-wrap";
+      wrap.innerHTML = html;
       chain.appendChild(wrap);
-      current = current.next; i++;
+      nodeDivs.push({ node: current, div: wrap.querySelector(".node") });
+
+      current = current.next;
+      index++;
     }
-    const nul = document.createElement('div');
-    nul.className = 'null'; nul.textContent = 'None';
-    chain.appendChild(nul);
+
+    let none = document.createElement("div");
+    none.className = "null";
+    none.textContent = "None";
+    chain.appendChild(none);
     canvas.appendChild(chain);
   }
-  renderStats(); renderResult();
+
+  updateStats();
+  showResults();
 }
 
-function renderStats() {
-  $('sCount').textContent = list.size();
-  $('sPending').textContent = list.list_pending().length;
-  $('sDone').textContent = list.list_completed().length;
-  $('sEmpty').textContent = list.is_empty() ? 'Yes' : 'No';
+function updateStats() {
+  document.getElementById("sCount").textContent = list.size();
+  document.getElementById("sPending").textContent = list.list_pending().length;
+  document.getElementById("sDone").textContent = list.list_completed().length;
+  document.getElementById("sEmpty").textContent = list.is_empty() ? "Yes" : "No";
 }
 
-function renderResult() {
-  const tasks = filter === 'all' ? list.list_all()
-    : filter === 'pending' ? list.list_pending()
-    : filter === 'done' ? list.list_completed()
-    : list.list_by_priority(filter);
-  $('result').innerHTML = tasks.length
-    ? tasks.map(t => `<div><span>${t.complete ? '✔' : '○'} <b>${esc(t.name)}</b> — ${esc(t.description || '')}</span><span class="tag">${PRIORITY_LABEL[t.priority]}</span></div>`).join('')
-    : '<div><span style="color:var(--muted)">[] — no results</span></div>';
-}
+function showResults() {
+  let tasks;
+  if (currentFilter == "all") tasks = list.list_all();
+  else if (currentFilter == "pending") tasks = list.list_pending();
+  else if (currentFilter == "done") tasks = list.list_completed();
+  else tasks = list.list_by_priority(currentFilter);
 
-async function visit(node) {
-  const el = nodeEls.get(node);
-  if (!el) return;
-  el.classList.add('visit');
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  log(`visiting node "${node.task.name}"`);
-  await sleep(delay());
-  el.classList.remove('visit');
-}
-
-function setBusy(v) {
-  busy = v;
-  document.querySelectorAll('aside button').forEach(b => b.disabled = v);
-}
-
-function readTask() {
-  const name = $('name').value.trim();
-  if (!name) { log('Name is required', 'err'); $('name').focus(); return null; }
-  return new Task(name, $('desc').value.trim(), $('date').value, $('priority').value);
-}
-
-function add(first) {
-  const task = readTask();
-  if (!task) return;
-  first ? list.addTaskFirst(task) : list.addTask(task);
-  log(`${first ? 'addTaskFirst' : 'addTask'}("${task.name}") → task_count = ${list.size()}`, 'ok');
-  $('name').value = ''; $('desc').value = '';
-  render();
-}
-
-async function byTitle(op) {
-  if (busy) return;
-  const title = $('title').value.trim();
-  if (!title) { log('Enter the task title', 'err'); return; }
-  setBusy(true);
-  log(`${op}("${title}") — traversing from first_task...`);
-  if (op === 'find_task') {
-    const node = await list.find_task(title, visit);
-    if (node) { nodeEls.get(node).classList.add('found'); log(`Found: "${node.task.name}"`, 'ok'); setTimeout(render, 1400); }
-    else log('Not found → None', 'err');
-  } else if (op === 'completeTask') {
-    const ok = await list.completeTask(title, visit);
-    log(ok ? `"${title}" marked as completed → True` : 'Does not exist → False', ok ? 'ok' : 'err');
-    render();
-  } else {
-    const node = await list.removeTask(title, visit);
-    if (node) {
-      const el = nodeEls.get(node);
-      el.classList.add('removing');
-      log(`Node removed; the previous node now points to its next → task_count = ${list.size()}`, 'ok');
-      await sleep(400);
-    } else log('Does not exist → False', 'err');
-    render();
+  let result = document.getElementById("result");
+  if (tasks.length == 0) {
+    result.innerHTML = '<div><span style="color:var(--muted)">[] — no results</span></div>';
+    return;
   }
-  setBusy(false);
+
+  let html = "";
+  for (let task of tasks) {
+    let icon = task.complete ? "✔" : "○";
+    html += '<div><span>' + icon + ' <b>' + clean(task.name) + '</b> — ' + clean(task.description) + '</span>' +
+      '<span class="tag">' + priorityNames[task.priority] + '</span></div>';
+  }
+  result.innerHTML = html;
 }
 
-function loadDemo() {
-  [
-    ['Exam', 'Take the calculus exam', '2026-09-24', 'HIGH'],
-    ['Study', 'Review linked lists', '2026-09-25', 'HIGH'],
-    ['Groceries', 'Buy groceries', '2026-09-26', 'LOW'],
-    ['Project', 'Work on the software project', '2026-09-27', 'MEDIUM'],
-    ['Gym', 'Leg day workout', '2026-09-28', 'LOW'],
-  ].forEach(a => list.addTask(new Task(...a)));
-  log('Sample loaded with 5 tasks', 'ok');
-  render();
+async function showVisit(node) {
+  let div = findDiv(node);
+  if (div == null) return;
+  div.classList.add("visit");
+  div.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  addLog('visiting node "' + node.task.name + '"');
+  await wait(getDelay());
+  div.classList.remove("visit");
 }
 
-$('btnAdd').onclick = () => add(false);
-$('btnAddFirst').onclick = () => add(true);
-$('btnFind').onclick = () => byTitle('find_task');
-$('btnComplete').onclick = () => byTitle('completeTask');
-$('btnRemove').onclick = () => byTitle('removeTask');
-$('btnDemo').onclick = loadDemo;
-$('btnClear').onclick = () => {
-  list.first_task = list.last_task = null; list.task_count = 0;
-  log('List cleared: first_task = last_task = None'); render();
-};
-$('filters').onclick = e => {
-  const b = e.target.closest('button'); if (!b) return;
-  filter = b.dataset.f;
-  document.querySelectorAll('#filters button').forEach(x => x.classList.toggle('active', x === b));
-  renderResult();
-};
-$('name').addEventListener('keydown', e => { if (e.key === 'Enter') add(false); });
-$('title').addEventListener('keydown', e => { if (e.key === 'Enter') byTitle('find_task'); });
-$('date').valueAsDate = new Date();
+function setWorking(value) {
+  working = value;
+  let buttons = document.querySelectorAll("aside button");
+  for (let b of buttons) {
+    b.disabled = value;
+  }
+}
 
-loadDemo();
+function addNewTask(atStart) {
+  let name = document.getElementById("name").value.trim();
+  if (name == "") {
+    addLog("Name is required", "err");
+    document.getElementById("name").focus();
+    return;
+  }
+
+  let description = document.getElementById("desc").value.trim();
+  let date = document.getElementById("date").value;
+  let priority = document.getElementById("priority").value;
+  let task = new Task(name, description, date, priority);
+
+  if (atStart) {
+    list.addTaskFirst(task);
+    addLog('addTaskFirst("' + name + '") → task_count = ' + list.size(), "ok");
+  } else {
+    list.addTask(task);
+    addLog('addTask("' + name + '") → task_count = ' + list.size(), "ok");
+  }
+
+  document.getElementById("name").value = "";
+  document.getElementById("desc").value = "";
+  drawList();
+}
+
+function getTitle() {
+  let title = document.getElementById("title").value.trim();
+  if (title == "") {
+    addLog("Enter the task title", "err");
+    return null;
+  }
+  return title;
+}
+
+async function findClick() {
+  let title = getTitle();
+  if (title == null || working) return;
+  setWorking(true);
+  addLog('find_task("' + title + '") — traversing from first_task...');
+
+  let node = await list.find_task(title);
+  if (node != null) {
+    findDiv(node).classList.add("found");
+    addLog('Found: "' + node.task.name + '"', "ok");
+    setTimeout(drawList, 1400);
+  } else {
+    addLog("Not found → None", "err");
+  }
+  setWorking(false);
+}
+
+async function completeClick() {
+  let title = getTitle();
+  if (title == null || working) return;
+  setWorking(true);
+  addLog('completeTask("' + title + '") — traversing from first_task...');
+
+  let ok = await list.completeTask(title);
+  if (ok) {
+    addLog('"' + title + '" marked as completed → True', "ok");
+  } else {
+    addLog("Does not exist → False", "err");
+  }
+  drawList();
+  setWorking(false);
+}
+
+async function removeClick() {
+  let title = getTitle();
+  if (title == null || working) return;
+  setWorking(true);
+  addLog('removeTask("' + title + '") — traversing from first_task...');
+
+  let node = await list.removeTask(title);
+  if (node != null) {
+    findDiv(node).classList.add("removing");
+    addLog("Node removed, the previous node now points to its next → task_count = " + list.size(), "ok");
+    await wait(400);
+  } else {
+    addLog("Does not exist → False", "err");
+  }
+  drawList();
+  setWorking(false);
+}
+
+function loadSample() {
+  list.addTask(new Task("Exam", "Take the calculus exam", "2026-09-24", "HIGH"));
+  list.addTask(new Task("Study", "Review linked lists", "2026-09-25", "HIGH"));
+  list.addTask(new Task("Groceries", "Buy groceries", "2026-09-26", "LOW"));
+  list.addTask(new Task("Project", "Work on the software project", "2026-09-27", "MEDIUM"));
+  list.addTask(new Task("Gym", "Leg day workout", "2026-09-28", "LOW"));
+  addLog("Sample loaded with 5 tasks", "ok");
+  drawList();
+}
+
+function clearList() {
+  list = new TaskList();
+  addLog("List cleared: first_task = last_task = None");
+  drawList();
+}
+
+function filterClick(event) {
+  let button = event.target.closest("button");
+  if (button == null) return;
+  currentFilter = button.dataset.f;
+  let buttons = document.querySelectorAll("#filters button");
+  for (let b of buttons) {
+    b.classList.remove("active");
+  }
+  button.classList.add("active");
+  showResults();
+}
+
+document.getElementById("btnAdd").onclick = function () { addNewTask(false); };
+document.getElementById("btnAddFirst").onclick = function () { addNewTask(true); };
+document.getElementById("btnFind").onclick = findClick;
+document.getElementById("btnComplete").onclick = completeClick;
+document.getElementById("btnRemove").onclick = removeClick;
+document.getElementById("btnDemo").onclick = loadSample;
+document.getElementById("btnClear").onclick = clearList;
+document.getElementById("filters").onclick = filterClick;
+
+document.getElementById("name").addEventListener("keydown", function (e) {
+  if (e.key == "Enter") addNewTask(false);
+});
+document.getElementById("title").addEventListener("keydown", function (e) {
+  if (e.key == "Enter") findClick();
+});
+
+document.getElementById("date").valueAsDate = new Date();
+loadSample();
 </script>
 </body>
 </html>
