@@ -19,5 +19,5 @@ class Task:
         self.complete = True
 
     def __str__(self):
-        status = "✔" if self.complete else "✘"
+        status = "✔" if self.complete else ""
         return f"[{status}] {self.name} ({self.priority.name}) - {self.date}: {self.description}"

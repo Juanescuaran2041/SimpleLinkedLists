@@ -4,7 +4,9 @@ from tkinter import messagebox
 from models.task import Task, Priority
 from models.taskList import TaskList
 
+# instance of TaskList
 task_list = TaskList()
+
 
 
 def show_tasks(tasks):
@@ -88,7 +90,7 @@ tk.OptionMenu(form, priority_var, "HIGH", "MEDIUM", "LOW").grid(row=3, column=1,
 
 tk.Button(form, text="Add task", command=add_task).grid(row=4, column=1, sticky="w", pady=5)
 
-# Operations by title
+# Operations
 actions = tk.LabelFrame(window, text="Operations")
 actions.pack(fill="x", padx=10, pady=5)
 
@@ -100,7 +102,7 @@ tk.Button(actions, text="Complete", command=complete_task).grid(row=1, column=1,
 tk.Button(actions, text="Remove", command=remove_task).grid(row=1, column=2)
 tk.Button(actions, text="Find", command=find_task).grid(row=1, column=3)
 
-# Lists
+# Tasklist
 lists = tk.LabelFrame(window, text="Tasks")
 lists.pack(fill="both", expand=True, padx=10, pady=5)
 
